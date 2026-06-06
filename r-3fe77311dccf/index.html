@@ -341,7 +341,7 @@
             <h1>Med & Japan Real Estate Scanner</h1>
             <div class="header-meta">Dual Relocation & Investment Portfolio</div>
         </div>
-        <div class="header-meta">Generated: 2026-06-06 16:35:16</div>
+        <div class="header-meta">Generated: 2026-06-06 20:18:15</div>
     </header>
 
     <div class="dashboard-container">
@@ -367,6 +367,17 @@
                     <label class="checkbox-label">
                         <input type="checkbox" id="cb-jp" checked onchange="filterData()"> Japan (JP)
                     </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>My Cash (EUR) — cash-on-cash mode</label>
+                <input type="number" id="cash-budget" placeholder="e.g. 80000" min="0" step="5000"
+                       oninput="onBudgetChange()"
+                       style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-color); font-family: inherit; font-size: 14px;">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                    Hides listings needing more cash than this and ranks by return on YOUR cash
+                    (net rent minus loan payments, divided by cash in). Clear to reset.
                 </div>
             </div>
 
@@ -38849,6 +38860,40 @@
         let sortedColumn = 'deal_score';
         let sortDirection = 'desc';
 
+        // Non-resident financing matrix (rate, term years) — mirrors analysis.py
+        const FIN = { GR: {rate: 0.042, term: 25}, CY: {rate: 0.048, term: 20}, JP: {rate: 0.038, term: 20} };
+
+        // Cash-on-cash: (net annual rent - annual debt service) / cash deployed.
+        // The cross-market arbitrage number: a 70%-financed Athens flat and a
+        // cash-only pre-1990 Osaka flat become directly comparable per EUR of cash.
+        function computeCoC(l) {
+            if (!l.net_yield || !l.cash_down_eur || l.cash_down_eur <= 0) return null;
+            const annualNet = l.net_yield * l.price_eur;
+            const ltv = l.financing_ltv || 0;
+            let debtService = 0;
+            const fin = FIN[getCountryCode(l)];
+            if (ltv > 0 && fin) {
+                const loan = l.price_eur * ltv;
+                const r = fin.rate / 12, n = fin.term * 12;
+                debtService = loan * r / (1 - Math.pow(1 + r, -n)) * 12;
+            }
+            return (annualNet - debtService) / l.cash_down_eur;
+        }
+
+        rawListings.forEach(l => { l.coc = computeCoC(l); });
+
+        function onBudgetChange() {
+            const budget = parseInt(document.getElementById('cash-budget').value) || 0;
+            if (budget > 0) {
+                sortedColumn = 'coc';
+                sortDirection = 'desc';
+            } else if (sortedColumn === 'coc') {
+                sortedColumn = 'deal_score';
+                sortDirection = 'desc';
+            }
+            filterData();
+        }
+
         // Initialize Map
         const map = L.map('map').setView([37.9838, 23.7275], 5); // Default centered on Med
         
@@ -38880,7 +38925,7 @@
                 style: { color: '#10b981', fillColor: '#10b981', fillOpacity: 0.12, weight: 1.5 }
             },
             {
-                name: "Osaka Tokku Minpaku Zone (365-Day Legal)",
+                name: "Osaka Tokku Minpaku Zone (legacy permits only — new applications halted 29 May 2026)",
                 coords: [
                     [34.725, 135.455],
                     [34.725, 135.535],
@@ -38920,6 +38965,9 @@
             const cyChecked = document.getElementById('cb-cy').checked;
             const jpChecked = document.getElementById('cb-jp').checked;
 
+            const budgetEl = document.getElementById('cash-budget');
+            const budget = budgetEl ? (parseInt(budgetEl.value) || 0) : 0;
+
             const filtered = rawListings.filter(l => {
                 const profileMatch = l.profile_type === currentProfile || l.profile_type === 'both';
                 const country = getCountryCode(l);
@@ -38928,6 +38976,10 @@
                 if (country === 'CY' && cyChecked) countryMatch = true;
                 if (country === 'JP' && jpChecked) countryMatch = true;
                 if ((country === 'ES' || country === 'PT') && (grChecked || cyChecked)) countryMatch = true; // Show Spain/Portugal on Med relocation
+
+                if (budget > 0 && currentProfile === 'investment') {
+                    if (!l.cash_down_eur || l.cash_down_eur > budget) return false;
+                }
 
                 return profileMatch && countryMatch;
             });
@@ -38984,6 +39036,7 @@
                     <th onclick="changeSort('city')">Location</th>
                     <th onclick="changeSort('price_eur')">Price</th>
                     <th onclick="changeSort('net_yield')">Yield</th>
+                    <th onclick="changeSort('coc')">CoC</th>
                     <th onclick="changeSort('cash_down_eur')">Cash Down</th>
                     <th onclick="changeSort('deal_score')">Score</th>
                     <th>Flags</th>
@@ -39017,6 +39070,7 @@
                         <td><span style="text-transform: capitalize;">${esc(l.city)}</span>, ${esc(l.neighborhood)}</td>
                         <td style="font-weight: 600;">€${l.price_eur.toLocaleString()}</td>
                         <td style="color: var(--primary); font-weight: 600;">${yieldText}</td>
+                        <td style="color: var(--accent-blue); font-weight: 600;">${l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '-'}</td>
                         <td>${cashText}</td>
                         <td><span class="badge ${scoreBadgeClass}">${scoreText}</span></td>
                         <td>${flagsHtml}</td>
