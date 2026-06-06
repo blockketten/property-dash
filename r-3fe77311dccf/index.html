@@ -15,333 +15,267 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --text-color: #f1f5f9;
-            --text-muted: #94a3b8;
-            --primary: #10b981;
-            --primary-hover: #059669;
-            --accent-blue: #3b82f6;
-            --accent-orange: #f97316;
-            --danger: #ef4444;
-            --warning: #f59e0b;
+        :root, html[data-theme="dark"] {
+            --s0: #101418;            /* page */
+            --s1: #161b21;            /* surface */
+            --s2: #1d242c;            /* raised */
+            --line: rgba(255,255,255,0.09);
+            --ink: #eef2f6;
+            --ink-2: #9aa7b4;
+            --ink-3: #5d6a77;
+            --money: #34d399;         /* returns + grants ONLY */
+            --money-dim: rgba(52,211,153,0.13);
+            --risk: #f87171;          /* legal risk ONLY */
+            --risk-dim: rgba(248,113,113,0.12);
+            --accent: #6ea8ff;        /* interaction */
+            --accent-dim: rgba(110,168,255,0.14);
+            --shadow: 0 10px 28px rgba(0,0,0,0.32);
+            --radius: 10px;
+        }
+        html[data-theme="light"] {
+            --s0: #f4f5f3;
+            --s1: #ffffff;
+            --s2: #eceee9;
+            --line: rgba(20,28,36,0.12);
+            --ink: #18222c;
+            --ink-2: #51606e;
+            --ink-3: #8b97a3;
+            --money: #0f8a5f;
+            --money-dim: rgba(15,138,95,0.10);
+            --risk: #c4453d;
+            --risk-dim: rgba(196,69,61,0.10);
+            --accent: #2563eb;
+            --accent-dim: rgba(37,99,235,0.10);
+            --shadow: 0 8px 22px rgba(24,34,44,0.10);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background: var(--s0);
+            color: var(--ink);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            font-size: 14px;
+            line-height: 1.45;
         }
+        .num { font-variant-numeric: tabular-nums; }
 
+        /* ── Header ─────────────────────────────────────────── */
         header {
-            background: linear-gradient(135deg, #022c22, #0f172a);
-            padding: 20px 40px;
-            border-bottom: 1px solid var(--border-color);
+            background: var(--s1);
+            border-bottom: 1px solid var(--line);
+            padding: 14px 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
         }
-
-        h1 {
-            font-size: 24px;
+        .brand { display: flex; align-items: baseline; gap: 12px; }
+        .brand h1 {
+            font-size: 22px;
             font-weight: 700;
-            background: linear-gradient(to right, #10b981, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.16em;
+            color: var(--ink);
         }
-
-        .header-meta {
-            font-size: 14px;
-            color: var(--text-muted);
+        .brand h1 .dot { color: var(--money); }
+        .brand .tagline {
+            font-size: 12px;
+            color: var(--ink-3);
+            letter-spacing: 0.02em;
         }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .header-meta { font-size: 12px; color: var(--ink-3); }
+        .theme-toggle {
+            background: var(--s2);
+            color: var(--ink-2);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .theme-toggle:hover, .theme-toggle:focus-visible { color: var(--ink); border-color: var(--accent); outline: none; }
 
+        /* ── Layout ─────────────────────────────────────────── */
         .dashboard-container {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 20px;
-            padding: 20px 40px;
+            gap: 18px;
+            padding: 18px 32px 40px;
             flex-grow: 1;
         }
-
         @media (min-width: 1200px) {
-            .dashboard-container {
-                grid-template-columns: 350px 1fr;
-            }
+            .dashboard-container { grid-template-columns: 300px 1fr; }
         }
-
         .glass-panel {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            background: var(--s1);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 18px;
         }
-
-        /* Left Controls Panel */
-        .controls-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            height: fit-content;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        label {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .profile-selector {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 4px;
-            border-radius: 10px;
-        }
-
-        .profile-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .profile-btn.active {
-            background: var(--primary);
-            color: #ffffff;
-        }
-
-        .country-checkboxes {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            font-size: 15px;
-            text-transform: none;
-            color: var(--text-color);
-        }
-
-        input[type="checkbox"] {
-            accent-color: var(--primary);
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .stats-summary {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .stat-val {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-
-        .stat-lbl {
+        .controls-panel { display: flex; flex-direction: column; gap: 22px; height: fit-content; position: sticky; top: 18px; }
+        .control-group label, .overline {
+            display: block;
             font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        /* Right Map and Listings Area */
-        .workspace-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        #map {
-            height: 400px;
-            border-radius: 16px;
-            border: 1px solid var(--border-color);
-            z-index: 1;
-        }
-
-        /* Table CSS */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 14px;
-        }
-
-        th {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 12px 15px;
-            color: var(--text-muted);
             font-weight: 600;
-            cursor: pointer;
-            user-select: none;
-            transition: color 0.3s;
-        }
-
-        th:hover {
-            color: var(--text-color);
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            vertical-align: middle;
-        }
-
-        tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        /* Badges */
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
+            color: var(--ink-3);
+            margin-bottom: 10px;
         }
+        .hint { font-size: 12px; color: var(--ink-3); margin-top: 8px; }
 
-        .badge-score-high {
-            background-color: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.4);
+        .profile-selector { display: flex; background: var(--s2); border-radius: 8px; padding: 3px; border: 1px solid var(--line); }
+        .profile-btn {
+            flex: 1; padding: 8px 0; border: none; border-radius: 6px;
+            background: transparent; color: var(--ink-2);
+            font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
         }
+        .profile-btn.active { background: var(--s1); color: var(--ink); box-shadow: var(--shadow); }
+        .profile-btn:focus-visible { outline: 2px solid var(--accent); }
 
-        .badge-score-mid {
-            background-color: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.4);
+        .country-checkboxes { display: flex; flex-direction: column; gap: 8px; }
+        .checkbox-label { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+        .checkbox-label:hover { color: var(--ink); }
+        input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+        .input {
+            width: 100%; padding: 10px 12px;
+            border-radius: 8px; border: 1px solid var(--line);
+            background: var(--s2); color: var(--ink);
+            font-family: inherit; font-size: 15px;
         }
+        .input:focus-visible { outline: none; border-color: var(--accent); }
 
-        .badge-score-low {
-            background-color: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.4);
+        .stats-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card { background: var(--s2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+        .stat-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .stat-lbl { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+        .workspace-panel { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        #map { height: 430px; border-radius: var(--radius); border: 1px solid var(--line); z-index: 1; }
+
+        /* ── Table ──────────────────────────────────────────── */
+        .table-container { background: var(--s1); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            text-align: left; padding: 12px 14px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--ink-3); border-bottom: 1px solid var(--line);
+            cursor: pointer; user-select: none; white-space: nowrap;
         }
+        thead th:hover { color: var(--ink); }
+        tbody tr.row { border-bottom: 1px solid var(--line); cursor: pointer; }
+        tbody tr.row:hover { background: var(--s2); }
+        tbody tr.row:hover .thumb { filter: brightness(1.12); }
+        tbody td { padding: 12px 14px; vertical-align: middle; font-size: 14px; }
 
-        .badge-flag {
-            background-color: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            margin-right: 4px;
-            margin-bottom: 4px;
-            text-transform: none;
+        .prop-cell { display: flex; gap: 12px; align-items: center; min-width: 260px; }
+        .thumb {
+            width: 58px; height: 44px; object-fit: cover; border-radius: 6px; flex-shrink: 0;
+            background: var(--s2); transition: filter 0.18s ease;
         }
-
-        .badge-flag-ban {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+        .thumb-empty {
+            width: 58px; height: 44px; border-radius: 6px; flex-shrink: 0;
+            background: var(--s2); border: 1px dashed var(--line);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: var(--ink-3);
         }
+        .prop-title { font-weight: 600; color: var(--ink); font-size: 14px; }
+        .prop-title a { color: inherit; text-decoration: none; }
+        .prop-title a:hover, .prop-title a:focus-visible { color: var(--accent); outline: none; }
+        .prop-meta { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
 
-        .badge-flag-viable {
-            background-color: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+        .cell-muted { color: var(--ink-2); }
+        .cell-money { color: var(--money); font-weight: 600; }
+        .grant-note { font-size: 11px; color: var(--money); margin-top: 2px; }
+
+        .hero-num {
+            font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1;
         }
+        .hero-lbl { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+        .hero-good { color: var(--money); }
+        .hero-mid { color: var(--ink); }
+        .hero-low { color: var(--ink-3); }
 
-        /* Map Popups */
+        .caret { color: var(--ink-3); font-size: 12px; transition: transform 0.18s ease; display: inline-block; }
+        tr.row.open .caret { transform: rotate(90deg); color: var(--accent); }
+
+        /* chips */
+        .chip {
+            display: inline-block; padding: 3px 9px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+            background: var(--s2); color: var(--ink-2); border: 1px solid var(--line);
+            margin: 2px 4px 2px 0;
+        }
+        .chip-money { background: var(--money-dim); color: var(--money); border-color: transparent; }
+        .chip-risk { background: var(--risk-dim); color: var(--risk); border-color: transparent; }
+
+        /* expanded detail */
+        tr.row-detail td { padding: 0; border-bottom: 1px solid var(--line); }
+        .detail-wrap { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.22s ease, opacity 0.22s ease; }
+        tr.row-detail.open .detail-wrap { max-height: 420px; opacity: 1; }
+        .detail-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px; padding: 16px 14px 18px; background: var(--s0);
+        }
+        .detail-card { background: var(--s1); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+        .detail-card h4 {
+            font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--ink-3); font-weight: 600; margin-bottom: 10px;
+        }
+        .wf-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; color: var(--ink-2); }
+        .wf-row .num { color: var(--ink); }
+        .wf-row.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; font-weight: 700; }
+        .wf-row.total .num { color: var(--money); }
+        .wf-row.grant .num { color: var(--money); }
+        .open-listing {
+            display: inline-block; margin-top: 6px; padding: 8px 14px; border-radius: 8px;
+            background: var(--accent-dim); color: var(--accent);
+            font-size: 13px; font-weight: 600; text-decoration: none;
+        }
+        .open-listing:hover, .open-listing:focus-visible { background: var(--accent); color: #fff; outline: none; }
+
+        /* badges kept for score pills in relocation view */
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .badge-score-high { background: var(--money-dim); color: var(--money); }
+        .badge-score-mid { background: var(--s2); color: var(--ink-2); }
+        .badge-score-low { background: var(--s2); color: var(--ink-3); }
+
+        /* map popups */
         .leaflet-popup-content-wrapper {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            font-family: 'Outfit', sans-serif;
+            background: var(--s1); color: var(--ink);
+            border: 1px solid var(--line); border-radius: 10px;
+            font-family: 'Outfit', sans-serif; box-shadow: var(--shadow);
         }
+        .leaflet-popup-tip { background: var(--s1); border: 1px solid var(--line); }
+        .popup-card { display: flex; flex-direction: column; gap: 8px; width: 200px; }
+        .popup-img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; }
+        .popup-title { font-weight: 600; font-size: 13px; }
+        .popup-price { font-size: 15px; font-weight: 700; color: var(--money); font-variant-numeric: tabular-nums; }
+        .popup-stats { font-size: 11px; color: var(--ink-2); }
 
-        .leaflet-popup-tip {
-            background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
-        }
-
-        .popup-card {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 200px;
-        }
-
-        .popup-img {
-            width: 100%;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-
-        .popup-title {
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .popup-price {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .popup-stats {
-            font-size: 11px;
-            color: var(--text-muted);
+        footer.assumptions {
+            padding: 12px 32px 26px; font-size: 11px; color: var(--ink-3); line-height: 1.6;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <div>
-            <h1>Med & Japan Real Estate Scanner</h1>
-            <div class="header-meta">Dual Relocation & Investment Portfolio</div>
+        <div class="brand">
+            <h1>AIRSIDE<span class="dot">.</span></h1>
+            <span class="tagline">property within one direct flight of Prague</span>
         </div>
-        <div class="header-meta">Generated: 2026-06-06 20:18:15</div>
+        <div class="header-right">
+            <span class="header-meta num">Generated 2026-06-06 23:52</span>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">Light / Dark</button>
+        </div>
     </header>
 
     <div class="dashboard-container">
@@ -371,13 +305,12 @@
             </div>
 
             <div class="control-group">
-                <label>My Cash (EUR) — cash-on-cash mode</label>
-                <input type="number" id="cash-budget" placeholder="e.g. 80000" min="0" step="5000"
-                       oninput="onBudgetChange()"
-                       style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-color); font-family: inherit; font-size: 14px;">
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-                    Hides listings needing more cash than this and ranks by return on YOUR cash
-                    (net rent minus loan payments, divided by cash in). Clear to reset.
+                <label>My Cash (EUR)</label>
+                <input type="number" id="cash-budget" class="input num" placeholder="e.g. 80000" min="0" step="5000"
+                       oninput="onBudgetChange()">
+                <div class="hint">
+                    Hides listings needing more cash and re-ranks by return on YOUR cash
+                    after loan payments. Clear to reset.
                 </div>
             </div>
 
@@ -39022,95 +38955,193 @@
             return (s.startsWith('http://') || s.startsWith('https://')) ? esc(s) : '';
         }
 
+        // ── Theme ─────────────────────────────────────────────
+        (function initTheme() {
+            const saved = localStorage.getItem('airside-theme');
+            const preferLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+            document.documentElement.dataset.theme = saved || (preferLight ? 'light' : 'dark');
+        })();
+        function toggleTheme() {
+            const cur = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = cur;
+            localStorage.setItem('airside-theme', cur);
+        }
+
+        // ── Plain-English flag labels ─────────────────────────
+        const FLAG_LABELS = {
+            STR_BAN_ZONE: 'No new Airbnb permits (central ban)',
+            STR_VERIFY_ZONE: 'Outside Airbnb ban today — verify',
+            STR_VIABLE_ZONE: 'Short-term rental OK (register first)',
+            OSAKA_TOKKU_LEGACY_ONLY: '365-day Airbnb only with existing permit',
+            KYOTO_STR_RESTRICTED: 'Kyoto: strictest Airbnb limits',
+            VAT_FREE_WINDOW: 'New-build VAT holiday to 31 Dec 2026',
+            CASH_ONLY_PRE_1990: 'Pre-1990: cash only (no foreigner loan)',
+            GRANT_GR_RENOVATE_36K: 'Reno subsidy up to €36,000',
+            GRANT_GR_RENT_OUT_8K: 'Renovate-to-rent grant up to €8,100',
+            GRANT_GR_TAX_DEDUCT_16K: '€16k reno tax deduction (to 2026)',
+            GRANT_JP_WINDOW_1M: 'Window subsidy up to ¥1M',
+            GRANT_JP_HOTWATER: 'Water-heater subsidy ¥70-170k',
+            GRANT_JP_MIRAI_REFORM: 'Eco-reno subsidy up to ¥1M',
+            GRANT_JP_OSAKA_SEISMIC: 'Osaka seismic subsidy (building)',
+            GRANT_JP_TOKYO_SAFETYNET: 'Tokyo seismic grant (10y condition)',
+            GRANT_CY_LISTED_40PCT: 'Listed-building grant 40% (verify)',
+        };
+        const OPEX = { GR: 0.25, CY: 0.20, JP: 0.35 };
+
+        function fmtEur(n) { return '€' + Math.round(n).toLocaleString(); }
+        function flagChip(f) {
+            const label = FLAG_LABELS[f] || f;
+            const cls = f.includes('BAN') || f === 'CASH_ONLY_PRE_1990' || f === 'KYOTO_STR_RESTRICTED'
+                ? 'chip-risk'
+                : (f.startsWith('GRANT_') || f.includes('VIABLE') || f === 'VAT_FREE_WINDOW' ? 'chip-money' : '');
+            return `<span class="chip ${cls}" title="${esc(f)}">${esc(label)}</span>`;
+        }
+
+        function detailHtml(l) {
+            const country = getCountryCode(l);
+            let waterfall = '<div class="wf-row"><span>No yield estimate</span></div>';
+            if (l.net_yield && l.price_eur) {
+                const netAnnual = l.net_yield * l.price_eur;
+                const opex = OPEX[country] ?? 0.25;
+                const gross = netAnnual / (1 - opex);
+                waterfall = `
+                    <div class="wf-row"><span>Gross rent (est.)</span><span class="num">${fmtEur(gross)}/yr</span></div>
+                    <div class="wf-row"><span>Mgmt, tax, costs (~${Math.round(opex * 100)}%)</span><span class="num">−${fmtEur(gross - netAnnual)}</span></div>
+                    <div class="wf-row total"><span>Net (${(l.net_yield * 100).toFixed(1)}% yield)</span><span class="num">${fmtEur(netAnnual)}/yr</span></div>`;
+            }
+            let cash = '<div class="wf-row"><span>No financing data</span></div>';
+            if (l.cash_down_eur) {
+                const ltv = l.financing_ltv || 0;
+                const deposit = l.price_eur * (1 - ltv);
+                const costs = l.cash_down_eur - deposit;
+                const grant = l.potential_grant_eur || 0;
+                cash = `
+                    <div class="wf-row"><span>Deposit (${ltv > 0 ? Math.round((1 - ltv) * 100) + '%' : 'cash buy'})</span><span class="num">${fmtEur(deposit)}</span></div>
+                    <div class="wf-row"><span>Purchase costs</span><span class="num">+${fmtEur(Math.max(0, costs))}</span></div>
+                    ${grant ? `<div class="wf-row grant"><span>Potential grant</span><span class="num">−${fmtEur(grant)}</span></div>` : ''}
+                    <div class="wf-row total"><span>Cash needed${grant ? ' (after grant)' : ''}</span><span class="num">${fmtEur(l.cash_down_eur - grant)}</span></div>`;
+            }
+            const chips = (l.regulatory_flags || []).map(flagChip).join('') || '<span class="chip">No flags</span>';
+            const u = safeUrl(l.url) || '#';
+            return `
+                <div class="detail-grid">
+                    <div class="detail-card"><h4>Yield waterfall</h4>${waterfall}</div>
+                    <div class="detail-card"><h4>Cash stack</h4>${cash}</div>
+                    <div class="detail-card"><h4>What applies here</h4>${chips}
+                        <div><a class="open-listing" href="${u}" target="_blank" rel="noopener noreferrer">Open listing →</a></div>
+                    </div>
+                </div>`;
+        }
+
+        let openRowId = null;
+        function toggleDetail(rowId) {
+            const row = document.getElementById('row-' + rowId);
+            const det = document.getElementById('det-' + rowId);
+            if (!row || !det) return;
+            const wasOpen = det.classList.contains('open');
+            document.querySelectorAll('tr.row-detail.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('tr.row.open').forEach(r => r.classList.remove('open'));
+            if (!wasOpen) {
+                det.classList.add('open');
+                row.classList.add('open');
+                openRowId = rowId;
+            } else {
+                openRowId = null;
+            }
+        }
+
+        function heroCell(l, budgetMode) {
+            const val = budgetMode ? l.coc : (l.deal_score != null ? l.deal_score / 100 : null);
+            const txt = budgetMode
+                ? (l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '—')
+                : (l.deal_score != null ? Math.round(l.deal_score) : '—');
+            const lbl = budgetMode ? 'on your cash' : 'deal score';
+            const cls = val == null ? 'hero-low' : (budgetMode ? (val >= 0.06 ? 'hero-good' : val >= 0.03 ? 'hero-mid' : 'hero-low')
+                                                              : (val >= 0.75 ? 'hero-good' : val >= 0.5 ? 'hero-mid' : 'hero-low'));
+            return `<div class="hero-num ${cls}">${txt}</div><div class="hero-lbl">${lbl}</div>`;
+        }
+
         function renderTable(data) {
             const headersTr = document.getElementById('table-headers');
             const bodyTbody = document.getElementById('table-body');
-            
             headersTr.innerHTML = '';
             bodyTbody.innerHTML = '';
+            const budgetEl = document.getElementById('cash-budget');
+            const budgetMode = !!(budgetEl && (parseInt(budgetEl.value) || 0) > 0);
 
-            // Setup headers depending on profile
             if (currentProfile === 'investment') {
                 headersTr.innerHTML = `
                     <th onclick="changeSort('title')">Property</th>
-                    <th onclick="changeSort('city')">Location</th>
                     <th onclick="changeSort('price_eur')">Price</th>
                     <th onclick="changeSort('net_yield')">Yield</th>
                     <th onclick="changeSort('coc')">CoC</th>
-                    <th onclick="changeSort('cash_down_eur')">Cash Down</th>
-                    <th onclick="changeSort('deal_score')">Score</th>
-                    <th>Flags</th>
-                `;
+                    <th onclick="changeSort('cash_down_eur')">Cash needed</th>
+                    <th onclick="changeSort('${budgetMode ? 'coc' : 'deal_score'}')">${budgetMode ? 'Your return' : 'Score'}</th>
+                    <th></th>`;
 
-                data.forEach(l => {
-                    const yieldText = l.net_yield ? (l.net_yield * 100).toFixed(1) + '%' : '-';
-                    const grantNote = l.potential_grant_eur ? `<div style="font-size: 10px; color: var(--primary);">grant up to €${l.potential_grant_eur.toLocaleString()}</div>` : '';
-                    const cashText = (l.cash_down_eur ? '€' + l.cash_down_eur.toLocaleString() : '-') + grantNote;
-                    const scoreText = l.deal_score ? l.deal_score + '/100' : '-';
-                    const scoreBadgeClass = l.deal_score >= 75 ? 'badge-score-high' : (l.deal_score >= 50 ? 'badge-score-mid' : 'badge-score-low');
-                    
-                    const flagsHtml = l.regulatory_flags.map(f => {
-                        const isBan = f.includes('BAN') ? 'badge-flag-ban' : (f.startsWith('GRANT_') || f.includes('VIABLE') || f.includes('TOKKU') ? 'badge-flag-viable' : '');
-                        return `<span class="badge badge-flag ${isBan}">${esc(f)}</span>`;
-                    }).join('');
-
+                data.forEach((l, i) => {
                     const u = safeUrl(l.url) || '#';
                     const img = safeUrl(l.photo_url);
+                    const grant = l.potential_grant_eur;
                     const tr = document.createElement('tr');
+                    tr.className = 'row';
+                    tr.id = 'row-' + i;
+                    tr.onclick = (e) => { if (e.target.tagName !== 'A') toggleDetail(i); };
                     tr.innerHTML = `
                         <td>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                ${img ? `<img src="${img}" style="width: 50px; height: 40px; object-fit: cover; border-radius: 4px;">` : `<div style="width: 50px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size:10px;">No Pic</div>`}
+                            <div class="prop-cell">
+                                ${img ? `<img class="thumb" src="${img}" alt="">` : `<div class="thumb-empty">no photo</div>`}
                                 <div>
-                                    <a href="${u}" target="_blank" rel="noopener noreferrer" style="color: var(--text-color); font-weight: 500; text-decoration: none;">${esc(l.title)}</a>
-                                    <div style="font-size: 11px; color: var(--text-muted);">${l.sqm} sqm | Year: ${l.construction_year || '-'}</div>
+                                    <div class="prop-title"><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(l.title) || 'Listing'}</a></div>
+                                    <div class="prop-meta">${esc(l.neighborhood)} · ${esc(l.city)} · <span class="num">${l.sqm || '?'}</span> sqm${l.construction_year ? ` · <span class="num">${l.construction_year}</span>` : ''}</div>
                                 </div>
                             </div>
                         </td>
-                        <td><span style="text-transform: capitalize;">${esc(l.city)}</span>, ${esc(l.neighborhood)}</td>
-                        <td style="font-weight: 600;">€${l.price_eur.toLocaleString()}</td>
-                        <td style="color: var(--primary); font-weight: 600;">${yieldText}</td>
-                        <td style="color: var(--accent-blue); font-weight: 600;">${l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '-'}</td>
-                        <td>${cashText}</td>
-                        <td><span class="badge ${scoreBadgeClass}">${scoreText}</span></td>
-                        <td>${flagsHtml}</td>
-                    `;
+                        <td class="num" style="font-weight:600;">${fmtEur(l.price_eur)}</td>
+                        <td class="num cell-money">${l.net_yield ? (l.net_yield * 100).toFixed(1) + '%' : '—'}</td>
+                        <td class="num cell-muted">${l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '—'}</td>
+                        <td class="num cell-muted">${l.cash_down_eur ? fmtEur(l.cash_down_eur) : '—'}${grant ? `<div class="grant-note num">grant −${fmtEur(grant)}</div>` : ''}</td>
+                        <td>${heroCell(l, budgetMode)}</td>
+                        <td><span class="caret">▶</span></td>`;
                     bodyTbody.appendChild(tr);
+
+                    const trd = document.createElement('tr');
+                    trd.className = 'row-detail';
+                    trd.id = 'det-' + i;
+                    trd.innerHTML = `<td colspan="7"><div class="detail-wrap">${detailHtml(l)}</div></td>`;
+                    bodyTbody.appendChild(trd);
                 });
             } else {
-                // Relocation Headers
                 headersTr.innerHTML = `
                     <th onclick="changeSort('title')">Property</th>
                     <th onclick="changeSort('city')">Location</th>
                     <th onclick="changeSort('price_eur')">Price</th>
                     <th onclick="changeSort('eur_per_sqm')">EUR/sqm</th>
                     <th onclick="changeSort('rooms')">Rooms</th>
-                    <th onclick="changeSort('deal_score')">Score</th>
-                `;
+                    <th onclick="changeSort('deal_score')">Score</th>`;
 
                 data.forEach(l => {
-                    const scoreText = l.deal_score ? l.deal_score + '%' : '-';
-                    const scoreBadgeClass = l.deal_score <= 25 ? 'badge-score-high' : (l.deal_score <= 50 ? 'badge-score-mid' : 'badge-score-low');
-                    
                     const u = safeUrl(l.url) || '#';
                     const img = safeUrl(l.photo_url);
+                    const scoreText = l.deal_score != null ? Math.round(l.deal_score) + '%' : '—';
+                    const scoreBadgeClass = l.deal_score <= 25 ? 'badge-score-high' : (l.deal_score <= 50 ? 'badge-score-mid' : 'badge-score-low');
                     const tr = document.createElement('tr');
+                    tr.className = 'row';
                     tr.innerHTML = `
                         <td>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                ${img ? `<img src="${img}" style="width: 50px; height: 40px; object-fit: cover; border-radius: 4px;">` : `<div style="width: 50px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size:10px;">No Pic</div>`}
+                            <div class="prop-cell">
+                                ${img ? `<img class="thumb" src="${img}" alt="">` : `<div class="thumb-empty">no photo</div>`}
                                 <div>
-                                    <a href="${u}" target="_blank" rel="noopener noreferrer" style="color: var(--text-color); font-weight: 500; text-decoration: none;">${esc(l.title)}</a>
-                                    <div style="font-size: 11px; color: var(--text-muted);">${l.sqm} sqm</div>
+                                    <div class="prop-title"><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(l.title) || 'Listing'}</a></div>
+                                    <div class="prop-meta"><span class="num">${l.sqm || '?'}</span> sqm</div>
                                 </div>
                             </div>
                         </td>
-                        <td><span style="text-transform: capitalize;">${esc(l.city)}</span>, ${esc(l.neighborhood)}</td>
-                        <td style="font-weight: 600;">€${l.price_eur.toLocaleString()}</td>
-                        <td>€${l.eur_per_sqm.toLocaleString()}</td>
-                        <td>${l.rooms}</td>
-                        <td><span class="badge ${scoreBadgeClass}">${scoreText}</span></td>
-                    `;
+                        <td class="cell-muted">${esc(l.city)}, ${esc(l.neighborhood)}</td>
+                        <td class="num" style="font-weight:600;">${fmtEur(l.price_eur)}</td>
+                        <td class="num cell-muted">${l.eur_per_sqm ? fmtEur(l.eur_per_sqm) : '—'}</td>
+                        <td class="num cell-muted">${l.rooms || '—'}</td>
+                        <td><span class="badge ${scoreBadgeClass}">${scoreText}</span></td>`;
                     bodyTbody.appendChild(tr);
                 });
             }
@@ -39213,5 +39244,9 @@
         // Run initial data render
         filterData();
     </script>
+
+    <footer class="assumptions">
+        Assumptions: long-term lets; management 8-12% (GR/CY) / 3-6% (JP); local taxes per non-resident rules; no vacancy or capex allowance; financing GR 70% @4.2% 25y, CY 55% @4.8% 20y, JP 60% @3.8% 20y (post-1990 only); FX at scrape time. Rent figures are benchmarks unless marked otherwise. Research, not advice.
+    </footer>
 </body>
 </html>
