@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>AIRSIDE Cyprus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root, html[data-theme="light"] {
+            --s1: #ffffff; --s2: #f1f2ee;
+            --line: rgba(20,28,36,0.12);
+            --ink: #18222c; --ink-2: #51606e; --ink-3: #8b97a3;
+            --money: #0f8a5f; --money-dim: rgba(15,138,95,0.10);
+            --risk: #c4453d; --risk-dim: rgba(196,69,61,0.10);
+            --accent: #2563eb; --accent-dim: rgba(37,99,235,0.10);
+            --warn: #b45309; --warn-dim: rgba(180,83,9,0.12);
+            --shadow: 0 8px 28px rgba(24,34,44,0.16);
+            --radius: 12px;
+        }
+        html[data-theme="dark"] {
+            --s1: #161b21; --s2: #1d242c;
+            --line: rgba(255,255,255,0.10);
+            --ink: #eef2f6; --ink-2: #9aa7b4; --ink-3: #5d6a77;
+            --money: #34d399; --money-dim: rgba(52,211,153,0.13);
+            --risk: #f87171; --risk-dim: rgba(248,113,113,0.12);
+            --accent: #6ea8ff; --accent-dim: rgba(110,168,255,0.14);
+            --warn: #fbbf24; --warn-dim: rgba(251,191,36,0.13);
+            --shadow: 0 10px 30px rgba(0,0,0,0.42);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body { font-family: 'Outfit', sans-serif; color: var(--ink); font-size: 14px; overflow: hidden; }
+        .num { font-variant-numeric: tabular-nums; }
+        #map { position: fixed; inset: 0; z-index: 1; }
+
+        /* floating HUD */
+        .hud { position: fixed; z-index: 1000; }
+        .hud-header {
+            top: 14px; left: 14px;
+            background: var(--s1); border: 1px solid var(--line); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 12px 16px; max-width: 480px;
+        }
+        .hud-header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+        .hud-header h1 .dot { color: var(--money); }
+        .hud-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+        .hud-sub a { color: var(--accent); text-decoration: none; cursor: pointer; font-weight: 600; }
+        .hud-sub a:hover, .hud-sub a:focus-visible { text-decoration: underline; outline: none; }
+
+        .hud-btns { top: 96px; left: 14px; display: flex; flex-direction: column; gap: 8px; }
+        .round-btn {
+            width: 42px; height: 42px; border-radius: 12px;
+            background: var(--s1); border: 1px solid var(--line); box-shadow: var(--shadow);
+            font-size: 17px; cursor: pointer; color: var(--ink-2);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .round-btn:hover, .round-btn:focus-visible { color: var(--ink); border-color: var(--accent); outline: none; }
+        .round-btn.active { color: var(--accent); border-color: var(--accent); }
+
+        .filter-panel {
+            top: 96px; left: 66px; width: 270px;
+            background: var(--s1); border: 1px solid var(--line); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 16px;
+            display: none; flex-direction: column; gap: 16px;
+        }
+        .filter-panel.open { display: flex; }
+        .fp-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; display: block; }
+        .profile-selector { display: flex; background: var(--s2); border-radius: 9px; padding: 3px; border: 1px solid var(--line); }
+        .profile-btn { flex: 1; padding: 7px 0; border: none; border-radius: 7px; background: transparent; color: var(--ink-2); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .profile-btn.active { background: var(--s1); color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+        .country-checkboxes { display: flex; flex-direction: column; gap: 7px; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+        input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+        .input { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--s2); color: var(--ink); font-family: inherit; font-size: 15px; }
+        .input:focus-visible { outline: none; border-color: var(--accent); }
+        .hint { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.5; }
+
+        /* bottom sheet */
+        .sheet {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
+            background: var(--s1); border-top: 1px solid var(--line);
+            border-radius: 18px 18px 0 0; box-shadow: 0 -10px 36px rgba(0,0,0,0.20);
+            height: 86vh; transform: translateY(calc(86vh - 132px));
+            transition: transform 0.28s cubic-bezier(.2,.8,.2,1);
+            display: flex; flex-direction: column;
+        }
+        .sheet.half { transform: translateY(calc(86vh - 46vh)); }
+        .sheet.full { transform: translateY(0); }
+        .sheet-handle { padding: 9px 0 4px; cursor: grab; display: flex; justify-content: center; }
+        .sheet-handle::before { content: ""; width: 44px; height: 5px; border-radius: 3px; background: var(--line); }
+        .sheet-head { display: flex; align-items: baseline; gap: 12px; padding: 2px 22px 12px; cursor: pointer; }
+        .sheet-head h2 { font-size: 19px; font-weight: 700; }
+        .sheet-head .count { font-size: 12.5px; color: var(--ink-3); }
+        .sheet-body { overflow-y: auto; flex: 1; padding: 0 14px 30px; }
+
+        /* bargain cards */
+        .bargain { display: flex; gap: 14px; padding: 13px 8px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 8px; }
+        .bargain:hover { background: var(--s2); }
+        .rank { font-size: 24px; font-weight: 700; color: var(--risk); min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+        .bargain img.bimg, .bimg-empty { width: 84px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--s2); flex-shrink: 0; }
+        .bimg-empty { border: 1px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:10px; color: var(--ink-3); }
+        .b-main { min-width: 0; flex: 1; }
+        .b-title { font-weight: 700; font-size: 15px; }
+        .b-title a { color: inherit; text-decoration: none; }
+        .b-title a:hover { color: var(--accent); }
+        .b-meta { font-size: 13px; color: var(--ink-2); margin-top: 1px; }
+        .b-good { font-size: 13px; font-weight: 700; color: var(--money); margin-top: 3px; }
+        .b-good .sep { color: var(--ink-3); font-weight: 400; }
+        .b-badges { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; }
+        .bd { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--warn-dim); color: var(--warn); }
+        .bd-money { background: var(--money-dim); color: var(--money); }
+        .bd-risk { background: var(--risk-dim); color: var(--risk); }
+        .bd-neutral { background: var(--s2); color: var(--ink-2); }
+
+        /* table mode (inside sheet, full state) */
+        .table-container { display: none; }
+        .sheet.full .table-container { display: block; }
+        .sheet.full #bargains { display: none; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { position: sticky; top: 0; background: var(--s1); text-align: left; padding: 11px 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
+        thead th:hover { color: var(--ink); }
+        tbody tr.row { border-bottom: 1px solid var(--line); cursor: pointer; }
+        tbody tr.row:hover { background: var(--s2); }
+        tbody td { padding: 11px 12px; vertical-align: middle; font-size: 14px; }
+        .prop-cell { display: flex; gap: 12px; align-items: center; min-width: 240px; }
+        .thumb { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: var(--s2); flex-shrink: 0; }
+        .thumb-empty { width: 56px; height: 42px; border-radius: 6px; background: var(--s2); border: 1px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:10px; color: var(--ink-3); flex-shrink: 0; }
+        .prop-title { font-weight: 600; font-size: 14px; }
+        .prop-title a { color: inherit; text-decoration: none; }
+        .prop-title a:hover { color: var(--accent); }
+        .prop-meta { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+        .cell-muted { color: var(--ink-2); }
+        .cell-money { color: var(--money); font-weight: 600; }
+        .grant-note { font-size: 11px; color: var(--money); margin-top: 2px; }
+        .hero-num { font-size: 21px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .hero-lbl { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+        .hero-good { color: var(--money); } .hero-mid { color: var(--ink); } .hero-low { color: var(--ink-3); }
+        .caret { color: var(--ink-3); font-size: 11px; transition: transform 0.18s ease; display: inline-block; }
+        tr.row.open .caret { transform: rotate(90deg); color: var(--accent); }
+        .chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--s2); color: var(--ink-2); border: 1px solid var(--line); margin: 2px 4px 2px 0; }
+        .chip-money { background: var(--money-dim); color: var(--money); border-color: transparent; }
+        .chip-risk { background: var(--risk-dim); color: var(--risk); border-color: transparent; }
+        tr.row-detail td { padding: 0; border-bottom: 1px solid var(--line); }
+        .detail-wrap { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.22s ease, opacity 0.22s ease; }
+        tr.row-detail.open .detail-wrap { max-height: 460px; opacity: 1; }
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 13px; padding: 15px 12px 17px; background: var(--s2); }
+        .detail-card { background: var(--s1); border: 1px solid var(--line); border-radius: 8px; padding: 13px; }
+        .detail-card h4 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; margin-bottom: 9px; }
+        .wf-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; color: var(--ink-2); }
+        .wf-row .num { color: var(--ink); }
+        .wf-row.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; font-weight: 700; }
+        .wf-row.total .num { color: var(--money); }
+        .wf-row.grant .num { color: var(--money); }
+        .open-listing { display: inline-block; margin-top: 6px; padding: 7px 13px; border-radius: 8px; background: var(--accent-dim); color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; }
+        .open-listing:hover { background: var(--accent); color: #fff; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .badge-score-high { background: var(--money-dim); color: var(--money); }
+        .badge-score-mid { background: var(--s2); color: var(--ink-2); }
+        .badge-score-low { background: var(--s2); color: var(--ink-3); }
+
+        /* map pins */
+        .pin-rank {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: var(--risk); color: #fff; border: 2.5px solid #fff;
+            display: flex; align-items: center; justify-content: center;
+            font: 700 13px 'Outfit', sans-serif; box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+        }
+        .pin-rank.pr-2 { background: #ea7317; }
+        .leaflet-popup-content-wrapper { background: var(--s1); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font-family: 'Outfit', sans-serif; box-shadow: var(--shadow); }
+        .leaflet-popup-tip { background: var(--s1); }
+        .popup-card { display: flex; flex-direction: column; gap: 8px; width: 200px; }
+        .popup-img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; }
+        .popup-title { font-weight: 600; font-size: 13px; }
+        .popup-price { font-size: 15px; font-weight: 700; color: var(--money); font-variant-numeric: tabular-nums; }
+        .popup-stats { font-size: 11px; color: var(--ink-2); }
+        .assume { font-size: 10.5px; color: var(--ink-3); padding: 10px 22px 18px; line-height: 1.55; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="hud hud-header">
+        <h1>🔥 AIRSIDE Cyprus<span class="dot">.</span></h1>
+        <div class="hud-sub"><span class="num" id="hud-count">…</span> · drag the sheet ↑ for the list · <a onclick="setSheet('full')">📋 table</a> · <span class="num">2026-06-07 12:00</span></div>
+    </div>
+
+    <div class="hud hud-btns">
+        <button class="round-btn" id="btn-filters" onclick="toggleFilters()" aria-label="Filters">⚙</button>
+        <button class="round-btn" onclick="toggleTheme()" aria-label="Theme">◐</button>
+    </div>
+
+    <div class="hud filter-panel" id="filter-panel">
+        <div>
+            <span class="fp-label">Target profile</span>
+            <div class="profile-selector">
+                <button class="profile-btn active" onclick="switchProfile('investment')">Investment</button>
+                <button class="profile-btn" onclick="switchProfile('relocation')">Relocation</button>
+            </div>
+        </div>
+        <div id="country-group">
+            <span class="fp-label">Countries</span>
+            <div class="country-checkboxes">
+                <label class="checkbox-label"><input type="checkbox" id="cb-gr" checked onchange="filterData()"> Greece</label>
+                <label class="checkbox-label"><input type="checkbox" id="cb-cy" checked onchange="filterData()"> Cyprus</label>
+                <label class="checkbox-label"><input type="checkbox" id="cb-jp" checked onchange="filterData()"> Japan</label>
+            </div>
+        </div>
+        <div>
+            <span class="fp-label">My cash (EUR)</span>
+            <input type="number" id="cash-budget" class="input num" placeholder="e.g. 80000" min="0" step="5000" oninput="onBudgetChange()">
+            <div class="hint">Hides listings needing more cash and re-ranks by return on YOUR cash after loan payments. Clear to reset.</div>
+        </div>
+    </div>
+
+    <div class="sheet" id="sheet">
+        <div class="sheet-handle" onclick="cycleSheet()"></div>
+        <div class="sheet-head" onclick="cycleSheet()">
+            <h2>🔥 Top bargains</h2>
+            <span class="count num" id="sheet-count"></span>
+        </div>
+        <div class="sheet-body">
+            <div id="bargains"></div>
+            <div class="table-container">
+                <table>
+                    <thead><tr id="table-headers"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+            <div class="assume">
+                Assumptions: long-term lets; mgmt 8-12% (GR/CY) / 3-6% (JP); non-resident taxes; no vacancy/capex allowance;
+                financing GR 70% @4.2% 25y, CY 55% @4.8% 20y, JP 60% @3.8% 20y (post-1990); FX at scrape time.
+                Rent figures are benchmarks unless marked. Research, not advice.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawListings = [{"id": "bazaraki_6532887", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 65000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6532887_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/38/28/382813b9f8cdf78876ce8b6b4ae0be59.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6519915", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 65000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6519915_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/3d/f5/3df52eb8c092931b1eb1e9bd172dfe39.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6416372", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 69000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6416372_2-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/b8/34/b834b6c3c3b66eb0a92630590e96526f.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6532275", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 70000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6532275_3-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/fb/2f/fb2fbc9965fd108695e538773e970cbf.webp", "title": "3-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_2291746", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 75000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/2291746_2-preserved-houses-2-diateretees-oikies/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/66/d9/66d906208abd2cd2fafcac4f2f4b01a3.webp", "title": "3-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6384441", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 75000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6384441_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/fe/4a/fe4a65c8a8787d9d23d03b0b5a743bf2.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6503879", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 75000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6503879_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/46/cf/46cf744846f4a52bd732211f18936e83.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6532909", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 93000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6532909_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a6/8d/a68deac6d3ac760d7a952237d12c9d02.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6350646", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 95000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6350646_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a0/89/a089ef5d5f36e642502156238dbec5a4.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6136131", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 95000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6136131_3-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/92/84/9284f3dc9cee976c6da3f7e4f7cee991.webp", "title": "3-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6313589", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 95000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6313589_3-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a1/0d/a10dc6f8c0fd0b7a2162ff5fd73ebdb9.webp", "title": "3-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6369452", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 99000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6369452_2-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/9b/cd/9bcd0296a54c5e66985d810bfe1a5ad5.webp", "title": "2-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6371266", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 99000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6371266_2-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/35/93/3593fabf2eeb3ff22ce95dab8f6af97e.webp", "title": "2-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6345871", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 99500, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6345871_2-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/2c/3e/2c3ee15ef48f4553280faf3ad4ef2c26.webp", "title": "2-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6357797", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 99900, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6357797_2-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8c/c9/8cc91b38f72e4f57389fcd2aef4ee9e4.webp", "title": "2-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_3800642", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 100000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/3800642_3-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/06/3e/063e2807418a1ab608779f9b65236987.webp", "title": "3-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6520771", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 100000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6520771_2-bedroom-apartment-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/c1/26/c12631e4069c2d941629181d037215e2.webp", "title": "2-bedroom apartment for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6520700", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 110000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6520700_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/f6/b4/f6b464b8a1c766d55f9d8e72c91ccb95.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6520702", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 110000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6520702_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/89/82/8982f63fca1a15ff77ef10a9a6321ad8.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6393347", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 115000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6393347_2-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/08/39/0839ee9c9892c69499e0803d0235b77c.webp", "title": "2-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6529830", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 119000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6529830_3-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/42/a7/42a7f173ee5824a409a9958600b1a671.webp", "title": "3-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5908324", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 120000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/5908324_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/6a/79/6a79cb2195d749817b8d43264ac01fb9.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6361630", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 125000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6361630_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8a/e0/8ae0d931b4e73704b2997b71f6b2e518.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6344881", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 130000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6344881_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8f/a6/8fa609965cedef81b4b82b9661e4bd81.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6382883", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 130000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6382883_2-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/96/26/9626b90ee51c602fc8fd3a1314b705c2.webp", "title": "2-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6507571", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 130000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6507571_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/e5/5f/e55ff3e9069354c31e9b4290055ae578.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6509080", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 130000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6509080_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/16/84/168445fa2152eaa15d31434a390a994a.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6538062", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 130000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6538062_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/0f/8a/0f8a4abc4300c5be3d97009a90e5abe3.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6520592", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 135000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6520592_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/e7/a2/e7a2691dad697b124c4445f16e99fbea.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5992546", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 135000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/5992546_3-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/61/3b/613b1e0b3c77a45045d1f1ef64de258c.webp", "title": "3-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6516455", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 135000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6516455_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/ad/f7/adf778cbb05bea586467be4b5c4ad36f.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6354055", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6354055_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/2a/6b/2a6b8835a48e0a34247a7fcd380baabc.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6058803", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6058803_2-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/b6/0d/b60d972f86c7c85c0c9a2bc05548e697.webp", "title": "2-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6347133", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6347133_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/55/e3/55e3a4cbffb0593958fcc3f5ab34affe.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6376630", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6376630_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/63/2e/632e89421e58371ff4d4bc8f1a139c61.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6329673", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6329673_3-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/e0/1f/e01f069cb8215449b17050f2f784ce34.webp", "title": "3-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6333797", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 140000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6333797_2-bedroom-semi-detached-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/ad/6d/ad6d6fcd8cdd632651e3750a11f73c60.webp", "title": "2-bedroom semi-detached for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6084977", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 149000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6084977_office-in-new-marina-port-area/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8b/01/8b01a29faf262401dc5f406b48f71500.webp", "title": "Office in new marina-port area", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5958052", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 150000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/5958052_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/c1/75/c175eb2ccbbb881c7be8ab1596b67ac5.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6393083", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 152000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6393083_office-in-paphos-dt3563/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8d/44/8d448817e23cb30b98c8e316163b96be.webp", "title": "Office in paphos - dt3563", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6241741", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 180000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6241741_90-sqm-fully-renovated-office-in-nicosia-center/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/ae/f4/aef420e7dd14dfd584127163046ee852.webp", "title": "90 sqm fully renovated office in nicosia center", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5767859", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 235000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/5767859_office-in-strovolos-acropoli/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/b5/e1/b5e151a9b2c4a66b487ff01a4bf4d456.webp", "title": "Office in strovolos - acropoli", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6349307", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 238000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6349307_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/47/8e/478ef077a2633c9354762ec0bddfd3ef.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_4855266", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 245000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/4855266_3-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/c3/c4/c3c4e2cc29a7d8292646baa83357f65e.webp", "title": "3-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6415104", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 250000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6415104_grapheia-se-exairetiko-semeio-sten-leophoro-kallipoleos/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/62/a2/62a27232ae2b3a7de8261dc7564ad295.webp", "title": "\u0393\u03c1\u03b1\u03c6\u03b5\u03af\u03b1 \u03c3\u03b5 \u03b5\u03be\u03b1\u03b9\u03c1\u03b5\u03c4\u03b9\u03ba\u03cc \u03c3\u03b7\u03bc\u03b5\u03af\u03bf \u03c3\u03c4\u03b7\u03bd \u03bb\u03b5\u03c9\u03c6\u03cc\u03c1\u03bf \u03ba\u03b1\u03bb\u03bb\u03b9\u03c0\u03cc\u03bb\u03b5\u03c9\u03c2", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5722325", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 302000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/5722325_2-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/5b/25/5b254ae868210dd653093e14c6d96ca2.webp", "title": "2-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6443967", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 350000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6443967_office-in-nicosia-cyprus/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/4b/5c/4b5c0cd754cc1c3c6ab2b11d30a3eed0.webp", "title": "Office in nicosia, cyprus.", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5548018", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 360000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/5548018_office-in-city-center-agia-zoni/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/18/a9/18a91a655dbb86d9e7e99d52a2ab0386.webp", "title": "Office in city center - agia zoni", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6395554", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 370000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6395554_2-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/18/46/184675139090d6798e97a600687e215d.webp", "title": "2-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6394581", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 390000, "sqm": 0, "eur_per_sqm": 0, "rooms": 2, "url": "https://www.bazaraki.com/adv/6394581_2-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/66/56/6656e584c02a1512fc028eb690acd54b.webp", "title": "2-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6406684", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 391000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6406684_3-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/f9/fa/f9facf9cdaf3b48259f645dda7abadc6.webp", "title": "3-bedroom maisonette for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6536423", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 420000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6536423_commercial-office-in-city-center-limassol/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/95/ad/95adf29add3f2ff39c3a76e121fbc520.webp", "title": "Commercial office in city center, limassol", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6349365", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 435000, "sqm": 0, "eur_per_sqm": 0, "rooms": 3, "url": "https://www.bazaraki.com/adv/6349365_3-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/7e/bb/7ebbd52da36a8e9a67da27e89bd29a42.webp", "title": "3-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "investment", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": 22.0, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6530102", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 95000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6530102_4-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/61/eb/61ebebd044ead967208d9206da6924a3.webp", "title": "4-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5935234", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 95000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/5935234_4-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/dc/5b/dc5bb0e27d92027bce1b4c03a458d568.webp", "title": "4-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6520697", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 135000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6520697_4-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/3c/61/3c611c844f8a6f273425d67046af2393.webp", "title": "4-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6219185", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 395000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6219185_4-bedroom-detached-house-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/8c/fe/8cfe1ca9fb549308a2d886b04aff98f6.webp", "title": "4-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6379931", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 410000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6379931_4-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/c6/1c/c61c53039ec1c4322939215dcfbc3fa1.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5556335", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 490000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/5556335_office/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/83/17/8317089fa247f226f018081bd8976bd2.webp", "title": "Office", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5720361", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 491000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/5720361_commercial-luxury-office-near-metropolis-mall-larnaca/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/10/46/1046f433daa1f4bec6d0ee13c6b0b33c.webp", "title": "Commercial luxury office near metropolis mall, larnaca", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_4672424", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 530000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/4672424_3-bedroom-maisonette-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/54/6a/546a34881ac0096ec95bd6defa34c7c9.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6450326", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 530000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6450326_office-in-acropoli/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/c3/39/c33997551fa913b619eb64f8b2be6db6.webp", "title": "Office in acropoli", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6386545", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 550000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6386545_commercial-office-kato-polemidia-limassol/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/4f/58/4f585ae29506c8e7616a26c763e7fb23.webp", "title": "Commercial office, kato polemidia, limassol", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6396054", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 559000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6396054_deleted-user-advert-6396054/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/89/de/89de83ef19d131917ef75d3e0567a933.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6389663", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 560000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6389663_office-in-limassol-ch4523/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/77/35/7735759bd19fbe0082db558e47f148af.webp", "title": "Office in limassol - ch4523", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6538363", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 575000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6538363_4-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/3a/3e/3a3ef02564390f4b89ff84d13473ff39.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6390437", "source": "bazaraki", "city": "paphos", "neighborhood": "Unknown", "price_eur": 577500, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6390437_commercial-office-in-agia-napa-limassol/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/39/4f/394fef672a352b22e8fca8e27e1592aa.webp", "title": "Commercial office in agia napa, limassol", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.7754, "longitude": 32.4218, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6345413", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 595000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6345413_office-in-strovolos-acropolis/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a5/23/a52354cc1782a4f5870256cea64f59b7.webp", "title": "Office in strovolos - acropolis", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6194678", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 600000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6194678_1082sqm-commercial-building-in-strovolos-nicosia/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/4f/19/4f1929befeb2645a35d7905ba79ae5ff.webp", "title": "534sqm commercial building in strovolos, nicosia", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6348833", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 670000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6348833_4-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a1/c8/a1c852e308099651ee80213363bb522b.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6199375", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 670000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6199375_deleted-user-advert-6199375/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/0d/69/0d69e513e28e3fef9e0fdeeefeed2360.webp", "title": "4-bedroom detached house for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_5722346", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 680000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/5722346_office-in-griva-digeni-street/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/0e/ce/0ecebfde1c3ed39aec3937370c312499.webp", "title": "Office in griva digeni street", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6246163", "source": "bazaraki", "city": "limassol", "neighborhood": "Unknown", "price_eur": 715000, "sqm": 0, "eur_per_sqm": 0, "rooms": 0, "url": "https://www.bazaraki.com/adv/6246163_office-in-limassol-cyprus/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/a7/d6/a7d6c25117beb146759199935a039dd0.webp", "title": "Office in limassol, cyprus.", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.6786, "longitude": 33.0413, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}, {"id": "bazaraki_6250204", "source": "bazaraki", "city": "larnaca", "neighborhood": "Unknown", "price_eur": 750000, "sqm": 0, "eur_per_sqm": 0, "rooms": 4, "url": "https://www.bazaraki.com/adv/6250204_4-bedroom-villa-for-sale/", "photo_url": "https://cdn1.bazaraki.com/media/cache1/1d/c0/1dc0ca4c6e18c03034f13b3b45531b37.webp", "title": "4-bedroom villa for sale", "first_seen": "2026-06-06", "last_seen": "2026-06-06", "profile_type": "relocation", "bedrooms": 0, "latitude": 34.922, "longitude": 33.6233, "net_yield": null, "cash_down_eur": null, "financing_ltv": null, "deal_score": null, "regulatory_flags": [], "construction_year": null, "potential_grant_eur": null}];
+        const COUNTRY_LOCK = "CY";
+        let currentProfile = 'investment';
+        let sortedColumn = 'deal_score';
+        let sortDirection = 'desc';
+
+        // ── theme ──
+        (function initTheme() {
+            const saved = localStorage.getItem('airside-theme');
+            const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.dataset.theme = saved || (preferDark ? 'dark' : 'light');
+        })();
+        function toggleTheme() {
+            const cur = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = cur;
+            localStorage.setItem('airside-theme', cur);
+            setTiles();
+        }
+
+        // ── security helpers (untrusted scraped strings) ──
+        function esc(v) {
+            return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function safeUrl(u) {
+            const s = String(u ?? '');
+            return (s.startsWith('http://') || s.startsWith('https://')) ? esc(s) : '';
+        }
+
+        function getCountryCode(l) {
+            const city = (l.city || '').toLowerCase();
+            if (l.source === 'spitogatos') return 'GR';
+            if (l.source === 'bazaraki') return 'CY';
+            if (l.source === 'realestate_jp') return 'JP';
+            if (city.includes('lisbon') || city.includes('cascais') || l.source === 'imovirtual') return 'PT';
+            return 'ES';
+        }
+
+        const FIN = { GR: {rate: 0.042, term: 25}, CY: {rate: 0.048, term: 20}, JP: {rate: 0.038, term: 20} };
+        const OPEX = { GR: 0.25, CY: 0.20, JP: 0.35 };
+        function computeCoC(l) {
+            if (!l.net_yield || !l.cash_down_eur || l.cash_down_eur <= 0) return null;
+            const annualNet = l.net_yield * l.price_eur;
+            const ltv = l.financing_ltv || 0;
+            let debtService = 0;
+            const fin = FIN[getCountryCode(l)];
+            if (ltv > 0 && fin) {
+                const loan = l.price_eur * ltv;
+                const r = fin.rate / 12, n = fin.term * 12;
+                debtService = loan * r / (1 - Math.pow(1 + r, -n)) * 12;
+            }
+            return (annualNet - debtService) / l.cash_down_eur;
+        }
+        rawListings.forEach(l => { l.coc = computeCoC(l); });
+
+        // ── client-side intelligence ──
+        const MEDIANS = (function build() {
+            const buckets = {};
+            rawListings.forEach(l => {
+                if (!l.eur_per_sqm) return;
+                const kN = l.city + '|' + l.neighborhood, kC = l.city + '|*';
+                (buckets[kN] = buckets[kN] || []).push(l.eur_per_sqm);
+                (buckets[kC] = buckets[kC] || []).push(l.eur_per_sqm);
+            });
+            const med = {};
+            Object.entries(buckets).forEach(([k, arr]) => {
+                arr.sort((a, b) => a - b);
+                med[k] = { v: arr[Math.floor(arr.length / 2)], n: arr.length };
+            });
+            return med;
+        })();
+        function belowDistrict(l) {
+            if (!l.eur_per_sqm) return null;
+            let m = MEDIANS[l.city + '|' + l.neighborhood];
+            if (!m || m.n < 4) m = MEDIANS[l.city + '|*'];
+            if (!m || m.n < 6) return null;
+            const pct = (m.v - l.eur_per_sqm) / m.v;
+            return pct >= 0.05 ? pct : null;
+        }
+        function daysOn(l) {
+            const d = Math.round((Date.now() - new Date(l.first_seen).getTime()) / 864e5);
+            return isFinite(d) && d >= 0 ? d : null;
+        }
+        const RE_WORDING = /negotiab|urgent|must sell|reduc|bargain|ευκαιρ|συζητήσιμ|μειωμέν|προλάβετε|値下げ|急募|交渉/i;
+
+        const FLAG_LABELS = {
+            STR_BAN_ZONE: 'No new Airbnb permits (central ban)',
+            STR_VERIFY_ZONE: 'Outside Airbnb ban today — verify',
+            STR_VIABLE_ZONE: 'Short-term rental OK (register first)',
+            OSAKA_TOKKU_LEGACY_ONLY: '365-day Airbnb only with existing permit',
+            KYOTO_STR_RESTRICTED: 'Kyoto: strictest Airbnb limits',
+            VAT_FREE_WINDOW: 'New-build VAT holiday to 31 Dec 2026',
+            CASH_ONLY_PRE_1990: 'Pre-1990: cash only (no foreigner loan)',
+            GRANT_GR_RENOVATE_36K: 'Reno subsidy up to €36,000',
+            GRANT_GR_RENT_OUT_8K: 'Renovate-to-rent grant up to €8,100',
+            GRANT_GR_TAX_DEDUCT_16K: '€16k reno tax deduction (to 2026)',
+            GRANT_JP_WINDOW_1M: 'Window subsidy up to ¥1M',
+            GRANT_JP_HOTWATER: 'Water-heater subsidy ¥70-170k',
+            GRANT_JP_MIRAI_REFORM: 'Eco-reno subsidy up to ¥1M',
+            GRANT_JP_OSAKA_SEISMIC: 'Osaka seismic subsidy (building)',
+            GRANT_JP_TOKYO_SAFETYNET: 'Tokyo seismic grant (10y condition)',
+            GRANT_CY_LISTED_40PCT: 'Listed-building grant 40% (verify)',
+        };
+        function fmtEur(n) { return '€' + Math.round(n).toLocaleString(); }
+        function flagChip(f) {
+            const label = FLAG_LABELS[f] || f;
+            const cls = f.includes('BAN') || f === 'CASH_ONLY_PRE_1990' || f === 'KYOTO_STR_RESTRICTED'
+                ? 'chip-risk'
+                : (f.startsWith('GRANT_') || f.includes('VIABLE') || f === 'VAT_FREE_WINDOW' ? 'chip-money' : '');
+            return `<span class="chip ${cls}" title="${esc(f)}">${esc(label)}</span>`;
+        }
+
+        function badgeRow(l) {
+            const out = [];
+            const d = daysOn(l);
+            if (d != null && d >= 120) out.push(`<span class="bd">${d}d — stale</span>`);
+            if (RE_WORDING.test(l.title || '')) out.push('<span class="bd">urgent or negotiable wording</span>');
+            const bd = belowDistrict(l);
+            if (bd) out.push(`<span class="bd bd-money num">${(bd * 100).toFixed(1)}% under area €/m²</span>`);
+            (l.regulatory_flags || []).forEach(f => {
+                if (f.startsWith('GRANT_')) out.push(`<span class="bd bd-money">${esc(FLAG_LABELS[f] || f)}</span>`);
+                else if (f === 'CASH_ONLY_PRE_1990' || f.includes('BAN')) out.push(`<span class="bd bd-risk">${esc(FLAG_LABELS[f] || f)}</span>`);
+                else if (f.includes('VIABLE')) out.push(`<span class="bd bd-money">Airbnb OK</span>`);
+            });
+            return out.slice(0, 5).join('');
+        }
+
+        function detailHtml(l) {
+            const country = getCountryCode(l);
+            let waterfall = '<div class="wf-row"><span>No yield estimate</span></div>';
+            if (l.net_yield && l.price_eur) {
+                const netAnnual = l.net_yield * l.price_eur;
+                const opex = OPEX[country] ?? 0.25;
+                const gross = netAnnual / (1 - opex);
+                waterfall = `
+                    <div class="wf-row"><span>Gross rent (est.)</span><span class="num">${fmtEur(gross)}/yr</span></div>
+                    <div class="wf-row"><span>Mgmt, tax, costs (~${Math.round(opex * 100)}%)</span><span class="num">−${fmtEur(gross - netAnnual)}</span></div>
+                    <div class="wf-row total"><span>Net (${(l.net_yield * 100).toFixed(1)}% yield)</span><span class="num">${fmtEur(netAnnual)}/yr</span></div>`;
+            }
+            let cash = '<div class="wf-row"><span>No financing data</span></div>';
+            if (l.cash_down_eur) {
+                const ltv = l.financing_ltv || 0;
+                const deposit = l.price_eur * (1 - ltv);
+                const costs = l.cash_down_eur - deposit;
+                const grant = l.potential_grant_eur || 0;
+                cash = `
+                    <div class="wf-row"><span>Deposit (${ltv > 0 ? Math.round((1 - ltv) * 100) + '%' : 'cash buy'})</span><span class="num">${fmtEur(deposit)}</span></div>
+                    <div class="wf-row"><span>Purchase costs</span><span class="num">+${fmtEur(Math.max(0, costs))}</span></div>
+                    ${grant ? `<div class="wf-row grant"><span>Potential grant</span><span class="num">−${fmtEur(grant)}</span></div>` : ''}
+                    <div class="wf-row total"><span>Cash needed${grant ? ' (after grant)' : ''}</span><span class="num">${fmtEur(l.cash_down_eur - grant)}</span></div>`;
+            }
+            const chips = (l.regulatory_flags || []).map(flagChip).join('') || '<span class="chip">No flags</span>';
+            const u = safeUrl(l.url) || '#';
+            return `
+                <div class="detail-grid">
+                    <div class="detail-card"><h4>Yield waterfall</h4>${waterfall}</div>
+                    <div class="detail-card"><h4>Cash stack</h4>${cash}</div>
+                    <div class="detail-card"><h4>What applies here</h4>${chips}
+                        <div><a class="open-listing" href="${u}" target="_blank" rel="noopener noreferrer">Open listing →</a></div>
+                    </div>
+                </div>`;
+        }
+
+        // ── filters / state ──
+        function toggleFilters() {
+            document.getElementById('filter-panel').classList.toggle('open');
+            document.getElementById('btn-filters').classList.toggle('active');
+        }
+        function switchProfile(profile) {
+            currentProfile = profile;
+            document.querySelectorAll('.profile-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.toLowerCase() === profile);
+            });
+            filterData();
+        }
+        function onBudgetChange() {
+            const budget = parseInt(document.getElementById('cash-budget').value) || 0;
+            if (budget > 0) { sortedColumn = 'coc'; sortDirection = 'desc'; }
+            else if (sortedColumn === 'coc') { sortedColumn = 'deal_score'; sortDirection = 'desc'; }
+            filterData();
+        }
+        function changeSort(column) {
+            if (sortedColumn === column) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            else { sortedColumn = column; sortDirection = 'desc'; }
+            filterData();
+        }
+
+        function filterData() {
+            const grChecked = COUNTRY_LOCK ? true : document.getElementById('cb-gr').checked;
+            const cyChecked = COUNTRY_LOCK ? true : document.getElementById('cb-cy').checked;
+            const jpChecked = COUNTRY_LOCK ? true : document.getElementById('cb-jp').checked;
+            const budgetEl = document.getElementById('cash-budget');
+            const budget = budgetEl ? (parseInt(budgetEl.value) || 0) : 0;
+
+            const filtered = rawListings.filter(l => {
+                const profileMatch = l.profile_type === currentProfile || l.profile_type === 'both';
+                const country = getCountryCode(l);
+                let countryMatch = false;
+                if (COUNTRY_LOCK) countryMatch = true;
+                else {
+                    if (country === 'GR' && grChecked) countryMatch = true;
+                    if (country === 'CY' && cyChecked) countryMatch = true;
+                    if (country === 'JP' && jpChecked) countryMatch = true;
+                    if ((country === 'ES' || country === 'PT') && (grChecked || cyChecked)) countryMatch = true;
+                }
+                if (budget > 0 && currentProfile === 'investment') {
+                    if (!l.cash_down_eur || l.cash_down_eur > budget) return false;
+                }
+                return profileMatch && countryMatch;
+            });
+
+            filtered.sort((a, b) => {
+                let valA = a[sortedColumn], valB = b[sortedColumn];
+                if (valA == null) return sortDirection === 'asc' ? 1 : -1;
+                if (valB == null) return sortDirection === 'asc' ? -1 : 1;
+                if (typeof valA === 'string') return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                return sortDirection === 'asc' ? valA - valB : valB - valA;
+            });
+
+            document.getElementById('hud-count').innerText = `${filtered.length} of ${rawListings.length}`;
+            document.getElementById('sheet-count').innerText = `${filtered.length} listings`;
+
+            const budgetMode = budget > 0 && currentProfile === 'investment';
+            const top = [...filtered]
+                .filter(l => (budgetMode ? l.coc != null : l.deal_score != null))
+                .sort((a, b) => budgetMode ? (b.coc - a.coc) : (b.deal_score - a.deal_score))
+                .slice(0, 10);
+
+            renderBargains(top, budgetMode);
+            renderMapPins(filtered, top);
+            renderTable(filtered, budgetMode);
+        }
+
+        function renderBargains(top, budgetMode) {
+            const el = document.getElementById('bargains');
+            el.innerHTML = top.map((l, i) => {
+                const img = safeUrl(l.photo_url);
+                const u = safeUrl(l.url) || '#';
+                const d = daysOn(l);
+                const hero = budgetMode
+                    ? `${(l.coc * 100).toFixed(1)}% on your cash`
+                    : `score ${Math.round(l.deal_score)}`;
+                return `
+                <div class="bargain" onclick="focusListing(${rawListings.indexOf(l)})">
+                    <div class="rank num">${i + 1}</div>
+                    ${img ? `<img class="bimg" src="${img}" alt="">` : '<div class="bimg-empty">no photo</div>'}
+                    <div class="b-main">
+                        <div class="b-title"><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(l.neighborhood)}, ${esc(l.city)}</a></div>
+                        <div class="b-meta num">${l.rooms ? l.rooms + ' rm · ' : ''}${l.sqm || '?'}m² · ${fmtEur(l.price_eur)}${d != null ? ' · ' + d + 'd' : ''}${l.construction_year ? ' · ' + l.construction_year : ''}</div>
+                        <div class="b-good num">${hero}<span class="sep"> · </span>${l.net_yield ? (l.net_yield * 100).toFixed(1) + '% net yield' : ''}${l.cash_down_eur ? `<span class="sep"> · </span>cash ${fmtEur(l.cash_down_eur - (l.potential_grant_eur || 0))}` : ''}</div>
+                        <div class="b-badges">${badgeRow(l)}</div>
+                    </div>
+                </div>`;
+            }).join('') || '<div style="padding:20px;color:var(--ink-3);">No matches. Adjust filters or budget.</div>';
+        }
+
+        // ── map ──
+        const map = L.map('map', { zoomControl: false }).setView([34.9, 33.2], 9);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        let tileLayer = null;
+        function setTiles() {
+            const dark = document.documentElement.dataset.theme === 'dark';
+            if (tileLayer) map.removeLayer(tileLayer);
+            tileLayer = L.tileLayer(
+                dark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                     : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19 }
+            ).addTo(map);
+        }
+        setTiles();
+
+        const zones = [
+            { name: 'Athens districts 1-3: no new Airbnb permits (to 31 Dec 2026+)',
+              coords: [[38.005, 23.705], [38.005, 23.760], [37.955, 23.760], [37.955, 23.705]],
+              style: { color: '#c4453d', fillColor: '#c4453d', fillOpacity: 0.10, weight: 1.2, dashArray: '5 5' } },
+            { name: 'Athens Riviera: Airbnb-viable',
+              coords: [[37.895, 23.700], [37.895, 23.790], [37.800, 23.790], [37.800, 23.700]],
+              style: { color: '#0f8a5f', fillColor: '#0f8a5f', fillOpacity: 0.08, weight: 1.2, dashArray: '5 5' } },
+            { name: 'Osaka tokku minpaku (legacy permits only since 29 May 2026)',
+              coords: [[34.725, 135.455], [34.725, 135.535], [34.655, 135.535], [34.655, 135.455]],
+              style: { color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.08, weight: 1.2, dashArray: '5 5' } },
+        ];
+        zones.forEach(z => L.polygon(z.coords, z.style).addTo(map).bindTooltip(z.name, { sticky: true }));
+
+        let mapMarkers = [];
+        function popupHtmlFor(l) {
+            const pimg = safeUrl(l.photo_url);
+            const purl = safeUrl(l.url) || '#';
+            return `
+                <div class="popup-card">
+                    ${pimg ? `<img class="popup-img" src="${pimg}">` : ''}
+                    <div class="popup-title">${esc(l.neighborhood)}, ${esc(l.city)}</div>
+                    <div class="popup-price num">${fmtEur(l.price_eur)}</div>
+                    <div class="popup-stats num">${l.sqm || '?'}m² · ${l.rooms || '?'} rm${l.net_yield ? ' · ' + (l.net_yield * 100).toFixed(1) + '% net' : ''}${l.deal_score ? ' · score ' + Math.round(l.deal_score) : ''}</div>
+                    <a href="${purl}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;">Open listing →</a>
+                </div>`;
+        }
+        function renderMapPins(filtered, top) {
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+            const topIds = new Set(top.map(l => l.id));
+            filtered.forEach(l => {
+                if (l.latitude == null || l.longitude == null) return;
+                if (topIds.has(l.id)) return;
+                const score = l.deal_score || 0;
+                const color = score >= 75 ? '#0f8a5f' : (score >= 50 ? '#ea7317' : '#8b97a3');
+                const jitterA = (hashCode(l.id) % 628) / 100;
+                const jitterR = 0.004 + ((hashCode(l.id) >> 4) % 100) / 100 * 0.012;
+                const m = L.circleMarker([l.latitude + Math.sin(jitterA) * jitterR, l.longitude + Math.cos(jitterA) * jitterR], {
+                    radius: 6, fillColor: color, color: '#ffffff', weight: 1.5, opacity: 1, fillOpacity: 0.85
+                }).addTo(map).bindPopup(popupHtmlFor(l));
+                mapMarkers.push(m);
+            });
+            top.forEach((l, i) => {
+                if (l.latitude == null || l.longitude == null) return;
+                const jitterA = (hashCode(l.id) % 628) / 100;
+                const jitterR = 0.003 + ((hashCode(l.id) >> 4) % 100) / 100 * 0.009;
+                const icon = L.divIcon({ className: '', html: `<div class="pin-rank ${i >= 3 ? 'pr-2' : ''}">${i + 1}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+                const m = L.marker([l.latitude + Math.sin(jitterA) * jitterR, l.longitude + Math.cos(jitterA) * jitterR], { icon, zIndexOffset: 1000 })
+                    .addTo(map).bindPopup(popupHtmlFor(l));
+                mapMarkers.push(m);
+            });
+        }
+        function hashCode(s) {
+            let h = 0;
+            for (let i = 0; i < String(s).length; i++) { h = (h * 31 + String(s).charCodeAt(i)) | 0; }
+            return Math.abs(h);
+        }
+        function focusListing(idx) {
+            const l = rawListings[idx];
+            if (l && l.latitude != null) {
+                setSheet('peek');
+                map.setView([l.latitude, l.longitude], Math.max(map.getZoom(), 13));
+            }
+        }
+
+        // ── bottom sheet states ──
+        const sheetStates = ['peek', 'half', 'full'];
+        let sheetState = 'peek';
+        function setSheet(state) {
+            sheetState = state;
+            const el = document.getElementById('sheet');
+            el.classList.remove('half', 'full');
+            if (state !== 'peek') el.classList.add(state);
+        }
+        function cycleSheet() {
+            setSheet(sheetState === 'peek' ? 'half' : (sheetState === 'half' ? 'full' : 'peek'));
+        }
+
+        // ── table mode (full sheet) ──
+        let openRowId = null;
+        function toggleDetail(rowId) {
+            const row = document.getElementById('row-' + rowId);
+            const det = document.getElementById('det-' + rowId);
+            if (!row || !det) return;
+            const wasOpen = det.classList.contains('open');
+            document.querySelectorAll('tr.row-detail.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('tr.row.open').forEach(r => r.classList.remove('open'));
+            if (!wasOpen) { det.classList.add('open'); row.classList.add('open'); openRowId = rowId; }
+            else openRowId = null;
+        }
+        function heroCell(l, budgetMode) {
+            const val = budgetMode ? l.coc : (l.deal_score != null ? l.deal_score / 100 : null);
+            const txt = budgetMode ? (l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '—')
+                                   : (l.deal_score != null ? Math.round(l.deal_score) : '—');
+            const lbl = budgetMode ? 'on your cash' : 'deal score';
+            const cls = val == null ? 'hero-low' : (budgetMode ? (val >= 0.06 ? 'hero-good' : val >= 0.03 ? 'hero-mid' : 'hero-low')
+                                                              : (val >= 0.75 ? 'hero-good' : val >= 0.5 ? 'hero-mid' : 'hero-low'));
+            return `<div class="hero-num ${cls}">${txt}</div><div class="hero-lbl">${lbl}</div>`;
+        }
+        function renderTable(data, budgetMode) {
+            const headersTr = document.getElementById('table-headers');
+            const bodyTbody = document.getElementById('table-body');
+            headersTr.innerHTML = '';
+            bodyTbody.innerHTML = '';
+
+            if (currentProfile === 'investment') {
+                headersTr.innerHTML = `
+                    <th onclick="changeSort('title')">Property</th>
+                    <th onclick="changeSort('price_eur')">Price</th>
+                    <th onclick="changeSort('net_yield')">Yield</th>
+                    <th onclick="changeSort('coc')">CoC</th>
+                    <th onclick="changeSort('cash_down_eur')">Cash needed</th>
+                    <th onclick="changeSort('${budgetMode ? 'coc' : 'deal_score'}')">${budgetMode ? 'Your return' : 'Score'}</th>
+                    <th></th>`;
+                data.forEach((l, i) => {
+                    const u = safeUrl(l.url) || '#';
+                    const img = safeUrl(l.photo_url);
+                    const grant = l.potential_grant_eur;
+                    const tr = document.createElement('tr');
+                    tr.className = 'row';
+                    tr.id = 'row-' + i;
+                    tr.onclick = (e) => { if (e.target.tagName !== 'A') toggleDetail(i); };
+                    tr.innerHTML = `
+                        <td><div class="prop-cell">
+                            ${img ? `<img class="thumb" src="${img}" alt="">` : '<div class="thumb-empty">no photo</div>'}
+                            <div>
+                                <div class="prop-title"><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(l.title) || 'Listing'}</a></div>
+                                <div class="prop-meta">${esc(l.neighborhood)} · ${esc(l.city)} · <span class="num">${l.sqm || '?'}</span>m²${l.construction_year ? ` · <span class="num">${l.construction_year}</span>` : ''}</div>
+                            </div>
+                        </div></td>
+                        <td class="num" style="font-weight:600;">${fmtEur(l.price_eur)}</td>
+                        <td class="num cell-money">${l.net_yield ? (l.net_yield * 100).toFixed(1) + '%' : '—'}</td>
+                        <td class="num cell-muted">${l.coc != null ? (l.coc * 100).toFixed(1) + '%' : '—'}</td>
+                        <td class="num cell-muted">${l.cash_down_eur ? fmtEur(l.cash_down_eur) : '—'}${grant ? `<div class="grant-note num">grant −${fmtEur(grant)}</div>` : ''}</td>
+                        <td>${heroCell(l, budgetMode)}</td>
+                        <td><span class="caret">▶</span></td>`;
+                    bodyTbody.appendChild(tr);
+                    const trd = document.createElement('tr');
+                    trd.className = 'row-detail';
+                    trd.id = 'det-' + i;
+                    trd.innerHTML = `<td colspan="7"><div class="detail-wrap">${detailHtml(l)}</div></td>`;
+                    bodyTbody.appendChild(trd);
+                });
+            } else {
+                headersTr.innerHTML = `
+                    <th onclick="changeSort('title')">Property</th>
+                    <th onclick="changeSort('city')">Location</th>
+                    <th onclick="changeSort('price_eur')">Price</th>
+                    <th onclick="changeSort('eur_per_sqm')">EUR/m²</th>
+                    <th onclick="changeSort('rooms')">Rooms</th>
+                    <th onclick="changeSort('deal_score')">Score</th>`;
+                data.forEach(l => {
+                    const u = safeUrl(l.url) || '#';
+                    const img = safeUrl(l.photo_url);
+                    const scoreText = l.deal_score != null ? Math.round(l.deal_score) + '%' : '—';
+                    const scoreBadgeClass = l.deal_score <= 25 ? 'badge-score-high' : (l.deal_score <= 50 ? 'badge-score-mid' : 'badge-score-low');
+                    const tr = document.createElement('tr');
+                    tr.className = 'row';
+                    tr.innerHTML = `
+                        <td><div class="prop-cell">
+                            ${img ? `<img class="thumb" src="${img}" alt="">` : '<div class="thumb-empty">no photo</div>'}
+                            <div>
+                                <div class="prop-title"><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(l.title) || 'Listing'}</a></div>
+                                <div class="prop-meta"><span class="num">${l.sqm || '?'}</span>m²</div>
+                            </div>
+                        </div></td>
+                        <td class="cell-muted">${esc(l.city)}, ${esc(l.neighborhood)}</td>
+                        <td class="num" style="font-weight:600;">${fmtEur(l.price_eur)}</td>
+                        <td class="num cell-muted">${l.eur_per_sqm ? fmtEur(l.eur_per_sqm) : '—'}</td>
+                        <td class="num cell-muted">${l.rooms || '—'}</td>
+                        <td><span class="badge ${scoreBadgeClass}">${scoreText}</span></td>`;
+                    bodyTbody.appendChild(tr);
+                });
+            }
+        }
+
+        // init
+        if (COUNTRY_LOCK) document.getElementById('country-group').style.display = 'none';
+        filterData();
+    </script>
+</body>
+</html>
